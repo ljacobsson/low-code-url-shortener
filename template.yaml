@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform:
+  - 'AWS::Serverless-2016-10-31'
+Parameters:
+  ACMCertificateArn:
+    Type: String
+  DomainName:
+    Type: String
+  HostedZoneId:
+    Type: String
+Resources:
+  CreateUrl:
+    Type: 'AWS::Serverless::StateMachine'
+    Properties:
+      Name: !Sub '${AWS::StackName}-CreateUrl'
+      DefinitionUri: statemachine/create.yaml
+      Type: EXPRESS
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt LogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+      DefinitionSubstitutions:
+        UrlTable: !Ref UrlTable
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref UrlTable
+        - Version: 2012-10-17
+          Statement:
+            - Sid: Statement1
+              Effect: Allow
+              Action:
+                - logs:*
+              Resource:
+                - "*"
+  RedirectToUrl:
+    Type: 'AWS::Serverless::StateMachine'
+    Properties:
+      Name: !Sub '${AWS::StackName}-RedirectToUrl'
+      DefinitionUri: statemachine/redirect.yaml
+      Type: EXPRESS
+      Logging:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt LogGroup.Arn
+        IncludeExecutionData: true
+        Level: ALL
+      DefinitionSubstitutions:
+        UrlTable: !Ref UrlTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UrlTable
+        - Version: 2012-10-17
+          Statement:
+            - Sid: Statement1
+              Effect: Allow
+              Action:
+                - logs:*
+              Resource:
+                - "*"
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      DefinitionBody: 
+        'Fn::Transform':
+          Name: 'AWS::Include'
+          Parameters:
+            Location: './api.yaml'
+      OpenApiVersion: 3.0.3
+      EndpointConfiguration:
+          Type: REGIONAL
+      Domain:
+        DomainName: !Ref DomainName
+        CertificateArn: !Ref ACMCertificateArn
+        EndpointConfiguration: EDGE
+        Route53:
+          HostedZoneId: !Ref HostedZoneId
+  ApiRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - apigateway.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+      - PolicyName: AllowSFNExec
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action: "states:StartSyncExecution"
+              Resource: 
+                - !Ref RedirectToUrl
+                - !Ref CreateUrl
+  LogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub '/stepfunctions/${AWS::StackName}-StateMachine'
+  UrlTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: Id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: Id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+Outputs:
+  Api:
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'

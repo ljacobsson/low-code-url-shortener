@@ -1,0 +1,56 @@
+openapi: "3.0.1"
+info:
+  title: "url-shortener"
+  version: "1"
+paths:
+  /:
+    post:
+      responses:
+        200:
+          description: "200 response"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials: 
+          Fn::GetAtt: [ApiRole, Arn]
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:states:action/StartSyncExecution"
+        responses:
+          200:
+            statusCode: 200
+            responseTemplates:
+              application/json: 
+                Fn::Sub: "#set($response = $input.path('$'))\n { \"ShortUrl\": \"https://${DomainName}/$util.parseJson($response.output).Hash\" }"
+        requestTemplates:
+          application/json: 
+            Fn::Sub: "#set($data = $input.json('$')) { \"input\": \"$util.escapeJavaScript($data)\", \"stateMachineArn\": \"${CreateUrl}\" }"
+        passthroughBehavior: "when_no_templates"
+  /{id}:
+    get:
+      parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"          
+      responses:
+        301:
+          description: "301 response"
+          content: {}
+      x-amazon-apigateway-integration:
+        type: "aws"
+        credentials: 
+          Fn::GetAtt: [ApiRole, Arn]
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:states:action/StartSyncExecution"
+        responses:
+          200:
+            statusCode: 301
+            responseTemplates:
+              text/html: "#set($response = $input.path('$'))\n#set($context.responseOverride.header.Location = $util.parseJson($response.output).Url)"
+        requestTemplates:
+          application/json: 
+            Fn::Sub: "#set($data = $util.escapeJavaScript($input.params('id'))) { \"input\": \"{ \\\"hash\\\": \\\"$data\\\" }\", \"stateMachineArn\": \"${RedirectToUrl}\" }"
+        passthroughBehavior: "when_no_templates"
+components:
+  schemas: {}

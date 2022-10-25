@@ -1,0 +1,33 @@
+StartAt: Define hash delimiter
+States:
+  Define hash delimiter:
+    Type: Pass
+    OutputPath: $
+    Parameters: 
+      Splitter: "-"
+    Next: Split hash
+  Split hash:
+    Type: Pass
+    OutputPath: $
+    Parameters:
+      Hash.$: States.ArrayGetItem(States.StringSplit(States.UUID(), $.Splitter), 1)
+    Next: Store URL
+  Store URL:
+    Type: Task
+    Resource: arn:aws:states:::aws-sdk:dynamodb:putItem
+    ResultPath: null
+    Parameters:
+      TableName: ${UrlTable}
+      ConditionExpression: attribute_not_exists(Id)
+      Item:
+        Id:
+          S.$: $.Hash
+        Url:
+          S.$: $$.Execution.Input.Url
+        HitCount: 
+          N: "0"
+    Catch:
+      - ErrorEquals: 
+          - DynamoDb.ConditionalCheckFailedException
+        Next: Split hash
+    End: true

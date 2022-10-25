@@ -1,0 +1,19 @@
+StartAt: Do redirect
+States:
+  Do redirect:
+    Type: Task
+    Resource: arn:aws:states:::aws-sdk:dynamodb:updateItem
+    Parameters:
+      TableName: ${UrlTable}
+      ConditionExpression: attribute_exists(Id)
+      ReturnValues: ALL_NEW
+      UpdateExpression: SET HitCount = HitCount + :incr
+      ExpressionAttributeValues:
+        :incr:
+          N: "1"
+      Key:
+        Id:
+          S.$: $.hash
+    ResultSelector:
+      Url.$: $.Attributes.Url.S
+    End: true    
