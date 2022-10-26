@@ -1,16 +1,18 @@
-StartAt: Define hash delimiter
+StartAt: Initialise
 States:
-  Define hash delimiter:
+  Initialise:
     Type: Pass
     OutputPath: $
     Parameters: 
       Splitter: "-"
-    Next: Split hash
-  Split hash:
+      Attempts: 0
+    Next: Create hash
+  Create hash:
     Type: Pass
     OutputPath: $
     Parameters:
       Hash.$: States.ArrayGetItem(States.StringSplit(States.UUID(), $.Splitter), 1)
+      Attempts.$: States.MathAdd($.Attempts, 1)
     Next: Store URL
   Store URL:
     Type: Task
@@ -29,5 +31,15 @@ States:
     Catch:
       - ErrorEquals: 
           - DynamoDb.ConditionalCheckFailedException
-        Next: Split hash
+        Next: Continue trying?
+        ResultPath: null
     End: true
+  Continue trying?:
+    Type: Choice
+    Choices:
+      - Variable: $.Attempts
+        NumericLessThan: 10
+        Next: Create hash
+    Default: Fail
+  Fail:
+    Type: Fail
