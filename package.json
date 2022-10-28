@@ -1,0 +1,25 @@
+{
+  "name": "url-shortener",
+  "version": "1.0.0",
+  "description": "### Prerequisite * A short domain name * An AWS account with a [Route53 hosted zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingHostedZone.html) and [ACM certificate](https://docs.aws.amazon.com/acm/latest/userguide/acm-overview.html) set up in `us-east-1` - these are not part of this CloudFormaton stack sice you'd normally keep them in separate stacks. * [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ljacobsson/low-code-url-shortener.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ljacobsson/low-code-url-shortener/issues"
+  },
+  "homepage": "https://github.com/ljacobsson/low-code-url-shortener#readme",
+  "dependencies": {
+    "aws-embedded-metrics": "^4.0.0",
+    "i": "^0.3.7",
+    "npm": "^8.19.2",
+    "zlib": "^1.0.5"
+  }
+}

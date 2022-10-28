@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Transform:
-  - 'AWS::Serverless-2016-10-31'
+  - AWS::Serverless-2016-10-31
 Parameters:
   ACMCertificateArn:
     Type: String
@@ -10,9 +10,9 @@ Parameters:
     Type: String
 Resources:
   CreateUrl:
-    Type: 'AWS::Serverless::StateMachine'
+    Type: AWS::Serverless::StateMachine
     Properties:
-      Name: !Sub '${AWS::StackName}-CreateUrl'
+      Name: !Sub ${AWS::StackName}-CreateUrl
       DefinitionUri: statemachines/create.yaml
       Type: EXPRESS
       Logging:
@@ -33,11 +33,11 @@ Resources:
               Action:
                 - logs:*
               Resource:
-                - "*"
+                - '*'
   RedirectToUrl:
-    Type: 'AWS::Serverless::StateMachine'
+    Type: AWS::Serverless::StateMachine
     Properties:
-      Name: !Sub '${AWS::StackName}-RedirectToUrl'
+      Name: !Sub ${AWS::StackName}-RedirectToUrl
       DefinitionUri: statemachines/redirect.yaml
       Type: EXPRESS
       Logging:
@@ -58,19 +58,18 @@ Resources:
               Action:
                 - logs:*
               Resource:
-                - "*"
+                - '*'
   Api:
     Type: AWS::Serverless::Api
     Properties:
       StageName: dev
-      DefinitionBody: 
-        'Fn::Transform':
-          Name: 'AWS::Include'
-          Parameters:
-            Location: './api.yaml'
+      DefinitionBody: !Transform 
+        Name: AWS::Include
+        Parameters:
+          Location: ./api.yaml
       OpenApiVersion: 3.0.3
       EndpointConfiguration:
-          Type: REGIONAL
+        Type: REGIONAL
       Domain:
         DomainName: !Ref DomainName
         CertificateArn: !Ref ACMCertificateArn
@@ -78,7 +77,7 @@ Resources:
         Route53:
           HostedZoneId: !Ref HostedZoneId
   ApiRole:
-    Type: 'AWS::IAM::Role'
+    Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -86,25 +85,25 @@ Resources:
           - Effect: Allow
             Principal:
               Service:
-              - apigateway.amazonaws.com
+                - apigateway.amazonaws.com
             Action:
-              - 'sts:AssumeRole'
+              - sts:AssumeRole
       Policies:
-      - PolicyName: AllowSFNExec
-        PolicyDocument:
-          Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Action: "states:StartSyncExecution"
-              Resource: 
-                - !Ref RedirectToUrl
-                - !Ref CreateUrl
+        - PolicyName: AllowSFNExec
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: states:StartSyncExecution
+                Resource:
+                  - !Ref RedirectToUrl
+                  - !Ref CreateUrl
   LogGroup:
-    Type: 'AWS::Logs::LogGroup'
+    Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/stepfunctions/${AWS::StackName}-StateMachine'
+      LogGroupName: !Sub /stepfunctions/${AWS::StackName}-StateMachine
   UrlTable:
-    Type: 'AWS::DynamoDB::Table'
+    Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
         - AttributeName: Id
@@ -113,6 +112,17 @@ Resources:
         - AttributeName: Id
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+  CreateSizeMetric:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs16.x      
+      Handler: src/CreateSizeMetric.handler
+      Events:
+        LogFilter:
+          Type: CloudWatchLogs
+          Properties:
+            FilterPattern: '{ $.type = "*StateEntered" }'
+            LogGroupName: !Ref LogGroup
 Outputs:
   Api:
-    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod'
+    Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod
